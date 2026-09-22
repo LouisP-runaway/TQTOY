@@ -1,0 +1,448 @@
+% Equations of the tqtoy model. Source of docs/MODEL_EQUATIONS.pdf.
+% Build:  pdflatex model_equations.tex
+\documentclass[11pt,a4paper]{article}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+
+% Flat layout: no paragraph indentation, blank line between paragraphs.
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8em}
+\linespread{1.05}
+
+% \code{...} writes a configuration path verbatim and lets it break after '.' and '_',
+% which a plain \texttt cannot do and which produces overfull lines.
+\DeclareUrlCommand\code{\urlstyle{tt}}
+\newcommand{\dd}[2]{\frac{\mathrm{d}#1}{\mathrm{d}#2}}
+\newcommand{\h}{\mathrm{h}}
+\newcommand{\co}{\mathrm{c}}
+
+\title{\texttt{tqtoy}: model equations}
+\date{}
+
+\begin{document}
+\maketitle
+
+Everything \texttt{tqtoy} solves is on the following pages. One idea per paragraph, one
+equation per box. Configuration parameters are written in \texttt{typewriter}.
+
+\section{What the model is}
+
+Zero-dimensional. Every quantity is a local density, a temperature or a power per unit volume.
+Temperatures are in eV, densities in $\mathrm{m^{-3}}$, powers in $\mathrm{W\,m^{-3}}$.
+
+A thermal energy density is $\tfrac{3}{2} e\, n T$.
+
+The plasma has one or two thermal populations (\code{model.populations}). With two, the
+pre-disruption plasma is the \textbf{hot} one, subscript $\h$, and the material deposited by the
+injection forms the \textbf{cold} one, subscript $\co$. Both occupy the same volume. With one
+population everything lives in the cold slots.
+
+Throughout, $\alpha \equiv 2/(3e)$ converts a power density into a $\mathrm{d}(nT)/\mathrm{d}t$.
+
+\section{Symbols}
+
+\begin{center}
+\begin{tabular}{@{}l>{\raggedright\arraybackslash}p{9.2cm}l@{}}
+\toprule
+Symbol & Meaning & Unit \\
+\midrule
+$n_{e,p}$, $n_{i,p}$ & electron and main-ion density of population $p$ & $\mathrm{m^{-3}}$ \\
+$T_{e,p}$, $T_{i,p}$ & electron and main-ion temperature of population $p$ & eV \\
+$n_{k,j}$ & density of charge state $k$ of impurity element $j$ & $\mathrm{m^{-3}}$ \\
+$Z_j$ & atomic number of element $j$ & \\
+$S_{k,j}$, $a_{k,j}$ & ADAS ionisation (\textsc{scd}) and recombination (\textsc{acd}) rates & $\mathrm{m^{3}\,s^{-1}}$ \\
+$L^{\mathrm{line}}$, $L^{\mathrm{cont}}$ & ADAS line (\textsc{plt}) and continuum (\textsc{prb}) rates & $\mathrm{W\,m^{3}}$ \\
+$S_D$ & deuterium deposition rate & $\mathrm{m^{-3}\,s^{-1}}$ \\
+$S^{\mathrm{imp}}_j$ & impurity deposition rate of element $j$ & $\mathrm{m^{-3}\,s^{-1}}$ \\
+$J$, $E$ & current density, parallel electric field & $\mathrm{A\,m^{-2}}$, $\mathrm{V\,m^{-1}}$ \\
+$\eta$, $\sigma$ & resistivity, conductivity & $\Omega\,\mathrm{m}$, $\mathrm{S\,m^{-1}}$ \\
+$\tau_{\alpha\beta}$ & energy-exchange time between species $\alpha$ and $\beta$ & s \\
+$e$ & elementary charge, $1.602\times 10^{-19}$ & C \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{State vector}
+
+The solver integrates
+\[
+  y = \bigl(\, T_{e,\h},\ T_{e,\co},\ n_{e,\h},\ n_{e,\co},\
+               T_{i,\h},\ T_{i,\co},\ n_{i,\h},\ n_{i,\co},\
+               n_{0,0},\ \dots,\ n_{Z_0,0},\ n_{0,1},\ \dots \,\bigr).
+\]
+
+Eight fluid quantities, then every charge state of every impurity element.
+
+Internally $y$ is normalised by fixed scales: $10^3$ for temperatures, $10^{20}$ for fluid
+densities, $10^{19}$ for charge states. This is bookkeeping only and does not change the
+equations.
+
+\section{Impurity charge states}
+
+Non-coronal balance between electron-impact ionisation and recombination:
+\begin{equation}
+\boxed{\;
+  \dd{n_{k,j}}{t} = r\, n_e \left[\, S_{k-1,j}\, n_{k-1,j} - S_{k,j}\, n_{k,j}
+                  + a_{k+1,j}\, n_{k+1,j} - a_{k,j}\, n_{k,j} \,\right]
+                  + \delta_{k,q}\, S^{\mathrm{imp}}_j \;}
+\end{equation}
+
+Out-of-range coefficients are zero: $S_{-1,j} = S_{Z_j,j} = a_{0,j} = a_{Z_j+1,j} = 0$.
+
+$r = $ \code{model.atomic_rate_multiplier} scales both rates. Large values push the
+distribution towards coronal equilibrium.
+
+$q = $ \code{injection.charge_state} is the charge state in which the injected impurities
+arrive, $0$ by default.
+
+With two populations each one drives its own ionisation and recombination, and the two
+contributions add. The impurity source is counted once.
+
+The inventory of each element, $\sum_k n_{k,j}$, is constant outside the injection window.
+
+\section{Particle balances}
+
+Every injected deuteron, and every electron released by impurity ionisation, is added to the
+\textbf{cold} population. No particle is transferred between the two populations, so the hot
+one is closed:
+\begin{equation}
+\boxed{\;
+  \dd{n_{e,\co}}{t} = S_D + \sum_{k,j} k\, \dd{n_{k,j}}{t} ,
+  \qquad
+  \dd{n_{i,\co}}{t} = S_D ,
+  \qquad
+  \dd{n_{e,\h}}{t} = \dd{n_{i,\h}}{t} = 0 . \;}
+\end{equation}
+
+The sum counts the free electrons released, or captured, by the charge-state balance.
+
+Charge neutrality is an exact invariant of these equations:
+\begin{equation}
+  n_{e,\h} + n_{e,\co} \;=\; n_{i,\h} + n_{i,\co} + \sum_{k,j} k\, n_{k,j}
+  \qquad \text{at all times.}
+\end{equation}
+
+The initial state satisfies it, so any departure signals a bug rather than a physical effect.
+
+\section{Energy balances}
+
+For each population $p$ and each species:
+\begin{equation}
+\boxed{\;
+  \dd{\left(n_{e,p} T_{e,p}\right)}{t}
+    = \alpha \left[\, P^{\mathrm{ohm}}_p - P^{\mathrm{rad}}_p - P^{\mathrm{stoch}}_p
+                    + P^{\mathrm{exch}}_{e,p} - c\, T_{e,p} \,\right] \;}
+\end{equation}
+\begin{equation}
+\boxed{\;
+  \dd{\left(n_{i,p} T_{i,p}\right)}{t}
+    = \alpha \left[\, P^{\mathrm{exch}}_{i,p} - c\, T_{i,p} \,\right] \;}
+\end{equation}
+
+$c = $ \code{model.linear_loss_coefficient} is an optional loss proportional to the
+temperature, off by default.
+
+The four power terms are defined in the next section.
+
+\textbf{Two ways to integrate the same thing.} \code{solver.state_variables} chooses what
+the four thermal slots hold. With \texttt{energy} they hold $nT$ and the equations above are
+integrated as written. With \texttt{temperature}, the default, they hold $T$ and the same
+equations are divided by $n$:
+\begin{equation}
+  \dd{T_{e,p}}{t} = \frac{1}{n_{e,p}}
+    \left\{ \alpha \left[\, \dots \,\right] - T_{e,p}\, \dd{n_{e,p}}{t} \right\} .
+\end{equation}
+
+The last term is the dilution by the injected material, which arrives with no thermal energy.
+
+The energy form has no $1/n$ and is the regular one. It is also the harder one to integrate,
+because $nT$ spans about fourteen decades over a run while $T$ spans two, and a single absolute
+tolerance cannot cover the former. Hence the default. Outputs are temperatures either way.
+
+\section{Power terms}
+
+\subsection*{Ohmic heating}
+
+\begin{equation}
+  P^{\mathrm{ohm}}_p = \eta_p J_p^2 = E\, J_p .
+\end{equation}
+
+$J$ is constant by default. \code{plasma.J_final} and \code{plasma.J_ramp_time} add an
+optional linear ramp.
+
+\subsection*{Impurity radiation}
+
+Line radiation of the states $0 \dots Z_j - 1$, plus continuum and recombination radiation of
+the states $1 \dots Z_j$:
+\begin{equation}
+  P^{\mathrm{rad}}_p = n_{e,p} \sum_j \left[
+      \sum_{k=0}^{Z_j-1} n_{k,j}\, L^{\mathrm{line}}_{k,j}
+    + \sum_{k=1}^{Z_j}   n_{k,j}\, L^{\mathrm{cont}}_{k-1,j} \right] .
+\end{equation}
+
+Both rates are evaluated at $(n_{e,p}, T_{e,p})$.
+
+Below \code{model.radiation_limit.Te_below} $= 100$~eV the radiated power is capped at the
+electron thermal energy divided by \code{model.radiation_limit.time_scale} $= 1\,\mu$s:
+\begin{equation}
+  P^{\mathrm{rad}}_p \leftarrow \min\!\left( P^{\mathrm{rad}}_p ,\;
+    \tfrac{3}{2}\, n_{e,p} T_{e,p}\, e / \tau_{\mathrm{cap}} \right) .
+\end{equation}
+
+The limiter can be switched off with \code{model.radiation_limit.enabled}.
+
+\subsection*{Stochastic transport loss}
+
+Electron heat loss along stochastic field lines, a Rechester--Rosenbluth estimate of the
+Ward--Wesson type:
+\begin{equation}
+  P^{\mathrm{stoch}}_p = 2 A\, \frac{n_{e,p}}{r\, a^2}\,
+    \frac{1 - 6 (r/a)^2}{\left[1 - (r/a)^2\right]^2}\, \left(T_{e,p}\, e\right)^{7/2} ,
+  \qquad
+  A = \left(\frac{\delta B}{B}\right)^{2}
+      \frac{18\, (2\pi)^{3/2}\, \varepsilon_0^2}{n_{e,p}\, e^4\, \ln\Lambda\, \sqrt{m_e}} .
+\end{equation}
+
+The density cancels, so this loss does not depend on $n_{e,p}$.
+
+It assumes $T_e(r) = T_e(0)\,(1 - r^2/a^2)$ and a flat density, and is evaluated at the minor
+radius $r$. The profile model requires $r/a < 1/\sqrt{6}$, which the configuration checks. The
+Coulomb logarithm here is the constant \code{model.stochastic.coulomb_log} $= 15$.
+
+\subsection*{Collisional exchange}
+
+Energy-exchange time between species $\alpha$ and $\beta$:
+\begin{equation}
+  \tau_{\alpha\beta} = \frac{3\sqrt{2}\, \pi^{3/2}\, \varepsilon_0^2\, m_\alpha m_\beta}
+                            {n_\beta\, e^4\, \ln\Lambda}
+    \left( \frac{T_\alpha e}{m_\alpha} + \frac{T_\beta e}{m_\beta} \right)^{3/2} .
+\end{equation}
+
+Power transferred from $\alpha$ to $\beta$:
+\begin{equation}
+\boxed{\;
+  P_{\alpha \to \beta} = \frac{3\, n_\alpha\, e\, \left(T_\alpha - T_\beta\right)}
+                              {2\, \tau_{\alpha\beta}} \;}
+\end{equation}
+
+Positive when $\alpha$ is the hotter, and zero when the two temperatures are equal. That second
+property is what makes the two-population coupling of the next section a relaxation.
+
+The Coulomb logarithms follow the usual formularies, each floored at 1 and evaluated with the
+hotter population:
+\begin{align}
+  \ln\Lambda_{ee} &= \begin{cases}
+      23.0000 - \ln\!\left( \sqrt{n_e^{\mathrm{cgs}}}\ T_e^{-3/2} \right), & T_e < 10\ \mathrm{eV}, \\
+      24.1513 - \ln\!\left( \sqrt{n_e^{\mathrm{cgs}}}\ T_e^{-1} \right),   & T_e \geq 10\ \mathrm{eV},
+    \end{cases} \\
+  \ln\Lambda_{ei} &= 15.2 - \tfrac{1}{2}\ln\!\left(n_e / 10^{20}\right) + \ln\!\left(T_e / 10^{3}\right), \\
+  \ln\Lambda_{ii} &= 17.3 - \tfrac{1}{2}\ln\!\left(n_i / 10^{20}\right) + \tfrac{3}{2}\ln\!\left(T_i / 10^{3}\right),
+\end{align}
+with $n_e^{\mathrm{cgs}} = n_e \times 10^{-6}$.
+
+With two populations, six exchange powers are computed. Writing
+$P_{ee} = P_{e,\h \to e,\co}$ and $P_{ii} = P_{i,\h \to i,\co}$, the net power received by each
+species is
+\begin{align}
+  P^{\mathrm{exch}}_{e,\h}  &= -P_{ee} - P_{e\h \to i\h} - P_{e\h \to i\co} , \\
+  P^{\mathrm{exch}}_{e,\co} &= +P_{ee} - P_{e\co \to i\co} - P_{e\co \to i\h} , \\
+  P^{\mathrm{exch}}_{i,\h}  &= -P_{ii} + P_{e\h \to i\h} + P_{e\co \to i\h} , \\
+  P^{\mathrm{exch}}_{i,\co} &= +P_{ii} + P_{e\co \to i\co} + P_{e\h \to i\co} .
+\end{align}
+
+With one population only $P_{e \to i}$ survives.
+
+\code{model.block_electron_ion_exchange} removes every electron-ion term and keeps
+$P_{ee}$ and $P_{ii}$.
+
+\section{Resistivity and current sharing}
+
+Effective charge, counting the main ions and every impurity charge state:
+\begin{equation}
+  Z_{\mathrm{eff}} = \frac{n_i + \sum_{k,j} k^2\, n_{k,j}}{n_i + \sum_{k,j} k\, n_{k,j}} ,
+  \qquad n_i = n_{i,\h} + n_{i,\co} .
+\end{equation}
+
+Spitzer resistivity, with a $Z_{\mathrm{eff}}$ correction normalised so that $f(1) = 1$:
+\begin{equation}
+  \eta(T_e) = 1.65\times 10^{-9}\, \ln\Lambda_{ee}\, \left(T_e / 10^{3}\right)^{-3/2}
+              f\!\left(Z_{\mathrm{eff}}\right) ,
+  \qquad
+  f(Z) = \frac{Z\left(1 + 1.198 Z + 0.222 Z^2\right)}{1 + 2.966 Z + 0.753 Z^2}\,
+         \frac{3.719}{1.420} .
+\end{equation}
+
+With two populations the current is shared between them. Each carries it in proportion to its
+own electron density:
+\begin{equation}
+\boxed{\;
+  \sigma_p = \frac{n_{e,p}}{n_{e,\h} + n_{e,\co}}\, \frac{1}{\eta(T_{e,p})} ,
+  \qquad
+  J_p = J\, \frac{\sigma_p}{\sigma_\h + \sigma_\co} \;}
+\end{equation}
+
+The two conductivities add up to $1/\eta$ when the two temperatures are equal.
+
+The density weight matters. The Spitzer resistivity does not depend on $n_e$, because the $n_e$
+of $\sigma = n_e e^2 \tau / m_e$ cancels against $\tau \propto 1/n_e$. That holds for a complete
+plasma. For a sub-population the collision frequency is set by the \emph{total} ion density, so
+its conductivity is proportional to its own density. \code{model.current_sharing} = \texttt{spitzer}
+drops the weight and leaves two parallel resistors $\eta(T_{e,\h})$ and $\eta(T_{e,\co})$,
+which give a nearly empty population a finite share of the current.
+
+An alternative hot-electron conductivity is available
+(\code{model.resistivity} = \texttt{multi\_species}). It accounts for collisions of hot electrons on
+cold electrons and on both ion populations. It carries its own density factor, so the weighting
+above is not applied on top of it. This expression is not validated.
+
+\section{The two populations}
+
+The two populations are co-located. They share the volume, the ion background and the current.
+They are coupled by the collisional exchange and by nothing else.
+
+From the energy balance with $P^{\mathrm{exch}}_{e,\h} \supset -P_{ee}$ and
+$P^{\mathrm{exch}}_{e,\co} \supset +P_{ee}$, the temperature difference obeys
+\begin{equation}
+\boxed{\;
+  \left.\dd{\left(T_{e,\h} - T_{e,\co}\right)}{t}\right|_{P_{ee}}
+    = -\alpha\, P_{ee} \left( \frac{1}{n_{e,\h}} + \frac{1}{n_{e,\co}} \right)
+    \; \propto \; -\left(T_{e,\h} - T_{e,\co}\right) . \;}
+\end{equation}
+
+A genuine relaxation. Restoring on both sides of the crossing, with no free parameter. Its
+fixed point $T_{e,\h} = T_{e,\co}$ is the state where the two components describe one
+Maxwellian. The ion side is identical with $P_{ii}$.
+
+A continuing source, such as the ablation, reopens the difference and the exchange closes it
+again. There is no threshold and no switch.
+
+\textbf{Why there is no particle transfer.} Electrons of the two components do mix, and a
+model could be built that moves particles as well as energy. It is tempting to deduce that
+particle rate from the exchange power already computed, as
+$S_e = \alpha P_{ee} / T_{e,\h}$. That expression must be rejected. It is a conversion, namely
+the number of particles carrying $P_{ee}$ at $\tfrac{3}{2} e T_{e,\h}$ each, and not a rate
+law. A physical rate has the form $n/\tau$.
+
+Adding it also destroys the relaxation. With the particles leaving the hot component, the
+dilution term it creates,
+$-T_{e,\h}(-S_e)/n_{e,\h} = +\alpha P_{ee}/n_{e,\h}$, cancels the exchange term identically,
+for any value of $P_{ee}$. Nothing is then left to pull the two electron temperatures together.
+With the particles moving the other way the same term is doubled instead. Both count one
+collisional process twice, since electron-electron collisions relax the temperatures and
+redistribute the particles at the same rate $\nu_{ee}$.
+
+Of the two possible bookkeepings of that single process, only the temperature relaxation keeps
+both component temperatures determined. A pure migration drives $n_{e,\h} \to 0$ while
+$\mathrm{d}T_{e,\h}/\mathrm{d}t = \alpha [\dots]/n_{e,\h}$ diverges, with a numerator that has
+no reason to vanish. The model therefore keeps the exchange alone.
+
+One-population runs are unaffected by any of this.
+
+\section{Injection}
+
+Both sources are active only for
+$t \in [\,t_{\mathrm{start}},\ t_{\mathrm{start}} + \Delta t\,]$.
+
+\subsection*{Prescribed deposition (default)}
+
+The deposited densities are reached at a constant rate:
+\begin{equation}
+  S_D = \frac{n_D}{\Delta t} ,
+  \qquad
+  S^{\mathrm{imp}}_j = \frac{n^{\mathrm{inj}}_j}{\Delta t} .
+\end{equation}
+
+$n_D = $ \code{injection.n_D} is the deposited deuterium atom density.
+
+$n^{\mathrm{inj}}_j = $ \code{impurities.<element>.injected_atom_density} is the deposited
+density of atoms of element $j$, summed over all charge states.
+
+\subsection*{Pellet ablation}
+
+Scaling law for mixed $\mathrm{D_2}$/impurity pellets:
+\begin{equation}
+  G(n_e, T_e) = \frac{C\, \lambda(X)}{f_w (1-X) + X}\;
+                \frac{n_e^{1/3}\, T_e^{5/3}}{V}\; \sum_s r_s^{4/3}
+                \;\left(\frac{2}{\max(B,2)}\right)^{0.843}
+                \tanh\!\left(\frac{t}{t_{\mathrm{on}}}\right) .
+\end{equation}
+
+$\lambda(X) = 27.0837 + \tan(1.48709\, X)$, with $X$ the molecular fraction of $\mathrm{D_2}$,
+$V$ the deposition volume and $r_s$ the radius of each shard.
+
+$C = 8.12 \times 10^{14}$ and $f_w = 20.183/2.016$ for hydrogen, or
+$C = 4.062 \times 10^{14}$ and $f_w = 20.183/4.0282$ for deuterium.
+
+When $X$ is not given it is computed as $X = (n_D/2)/(n_D/2 + n^{\mathrm{inj}})$.
+
+The resulting sources are $S^{\mathrm{imp}} = G(1-X)$ and $S_D = 2 G X$. With two populations
+the rate is the sum of the ablation driven by each.
+
+Shard radii are either identical or drawn from the Parks distribution,
+$p(r) = r \kappa_p^2 K_0(r \kappa_p)$ with
+$\kappa_p = \left(6\pi^2 N_s n_{\mathrm{solid}} / N_{\mathrm{atoms}}\right)^{1/3}$, then
+rescaled so that the total shard volume equals the pellet volume.
+
+\section{Floor and stopping}
+
+The eight fluid quantities are floored at \code{solver.floor} $= 0.01$ before the right-hand
+side is evaluated. At the floor, only the part of a derivative that would push a quantity
+further below its own floor is removed:
+\begin{equation}
+  \dd{n}{t} \leftarrow \max\!\left(\dd{n}{t},\, 0\right) \ \text{ if } n \leq y_{\mathrm{floor}} ,
+  \qquad
+  \dd{T}{t} \leftarrow \begin{cases}
+    0 & \text{if } n \leq y_{\mathrm{floor}} , \\[2pt]
+    \max\!\left(\dd{T}{t},\, 0\right) & \text{if } T \leq y_{\mathrm{floor}} .
+  \end{cases}
+\end{equation}
+
+A temperature is held by the density floor, because its equation carries a $1/n$ and because in
+the energy formulation $T$ is read back as $(nT)/n$, a ratio with no content once $n$ is pinned.
+
+A density is never held by a temperature. A population whose temperature has collapsed
+therefore keeps collecting the particles injected into it.
+
+The run stops on a terminal event when a fluid quantity becomes significantly negative. The
+exact solution cannot go below its floor, so the event is offset by the absolute tolerance of
+the solver, which is the smallest value it resolves.
+
+\section{Diagnostics}
+
+Density-weighted electron temperature:
+\begin{equation}
+  \langle T_e \rangle = \frac{n_{e,\h} T_{e,\h} + n_{e,\co} T_{e,\co}}{n_{e,\h} + n_{e,\co}} .
+\end{equation}
+
+The thermal-quench time $t_{\mathrm{TQ}}$ is the first output time at which
+$\langle T_e \rangle$ falls below 100~eV.
+
+Cumulated energies are integrated on the internal steps of the solver, using its dense output,
+rather than on the output times.
+
+\section*{Appendix: hot-tail runaway estimator}
+
+A separate module post-processes a run (\texttt{tqtoy fhte}). A relativistic test electron
+follows the collisional drag and the parallel field,
+\begin{equation}
+  \dd{p}{t} = -\frac{e E_\parallel}{m_e c} - \frac{\nu_{\mathrm{drag}}(p)}{p^2} ,
+\end{equation}
+and the trajectory ending at the critical momentum
+$p_c = \left(E_\parallel / E_c - 1\right)^{-1/2}$ is integrated backward to the initial time.
+
+The runaway fraction is the part of the initial Maxwell--Jüttner distribution above the initial
+momentum of that trajectory. The critical field is the Connor--Hastie value,
+\begin{equation}
+  E_c = \frac{n_e\, e^3 \ln\Lambda_c}{4\pi \varepsilon_0^2 m_e c^2} ,
+  \qquad
+  \ln\Lambda_c = 14.6 + \tfrac{1}{2} \ln\!\left( T_e / \left(n_e/10^{20}\right) \right) .
+\end{equation}
+
+The options are documented in the docstring of \code{src/tqtoy/fhte.py}.
+
+\end{document}

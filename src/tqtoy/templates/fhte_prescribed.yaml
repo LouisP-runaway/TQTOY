@@ -1,0 +1,43 @@
+# Input file of `tqtoy fhte`: standalone estimator on a prescribed evolution of the bulk plasma.
+# Run with:    tqtoy fhte fhte_prescribed_input.yaml
+# Figures:     tqtoy plot results/fhte_results.h5
+# Entries:     tqtoy tasks fhte
+# To run the estimator on a TQ results file instead, set `results` (tqtoy init -t fhte_results).
+# Each trace (Te, ne, J, E) is a number (constant), a list (one value per time),
+# {exponential: {initial, final, tau}}, {linear: {initial, final}} or {column: name} (column of `file`).
+
+results: null                 # null: use the prescribed evolution below
+jobs: 1                       # parallel processes (results file only)
+
+prescribed:
+  t_start: 1.0e-8             # first time [s]
+  t_end: 1.2e-3               # last time [s]
+  n_points: 200               # number of times
+  spacing: linear             # linear or log
+  file: null                  # optional CSV (header: t,Te,ne,J or E) or NPZ; its column t replaces the grid
+  Te: {exponential: {initial: 3.1e+3, final: 31.0, tau: 0.3e-3}}   # bulk electron temperature [eV]
+  ne: 2.8e+19                 # electron density [m^-3]
+  J: 1.5e+6                   # current density [A m^-2]: E = eta_Spitzer J
+  E: null                     # prescribed parallel field [V m^-1] (replaces J if set)
+
+fhte:
+  n_output: 20                # evaluation times from t_start to t_end
+  output_window: active       # evaluation times where E > E_c only (full: over the whole run,
+                              # where many points can then fall where E < E_c)
+  output_spacing: linear      # linear or log
+  accumulate: true            # the runaway population is kept once created (running maximum).
+                              # false: instantaneous fraction at each evaluation time
+  n_trajectory: 50            # stored points per backward trajectory (figures)
+  trajectory_spacing: linear  # linear or log
+  zeff: 1.0                   # Z_eff of the Spitzer field
+  neoclassical_factor: 2.0    # factor on the Spitzer resistivity
+  chandrasekhar: false        # Chandrasekhar function on the collisional drag
+  T_floor: 10.0               # floor on the bulk temperature [eV]
+  n_floor: 1.0e15             # floor on the density [m^-3]
+  critical_iterations: 4      # fixed-point iterations on gamma_c
+  rtol: 1.0e-5                # tolerances of the backward momentum integration
+  atol: 1.0e-10
+  gamma_max: 4.0              # Maxwell-Juttner integration range in gamma
+  gamma_points: 200000
+
+output: results/fhte_results.h5   # standalone result file (.h5), its directory is created

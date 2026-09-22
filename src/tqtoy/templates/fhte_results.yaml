@@ -1,0 +1,34 @@
+# Input file of `tqtoy fhte`: hot-tail runaway estimate on the points of a TQ results file.
+# Run with:   tqtoy fhte fhte_results_input.yaml -j 8
+# Map it:     tqtoy map results.h5 -q n_RE_hot_tail
+# Entries:    tqtoy tasks fhte
+# The bulk temperature, density and field come from each run. The `prescribed` section is
+# not used here (see `tqtoy init -t fhte_prescribed` for a standalone run).
+
+results: results/tqtoy_results.h5   # results file (.h5) of `tqtoy run`. The estimate is stored inside it
+jobs: 1                       # parallel processes
+output: null                  # null: update `results` in place; a path: write a copy instead
+
+fhte:
+  # Only the entries written here override the fhte section stored in the results file,
+  # so a scanned FHTE parameter keeps its scanned value unless it appears below.
+  # Delete a line to keep the value stored in the file.
+  n_output: 20                # evaluation times of the estimate, over the run duration
+  output_window: active       # evaluation times where E > E_c only (full: over the whole run,
+                              # where many points can then fall where E < E_c)
+  output_spacing: linear      # linear or log
+  accumulate: true            # the runaway population is kept once created (running maximum).
+                              # false: instantaneous fraction at each evaluation time
+  n_trajectory: 50            # stored points per backward momentum trajectory (figures only)
+  temperature: average        # bulk temperature: average (density-weighted), cold or hot
+  field: spitzer              # parallel field: spitzer (from J) or model (field of the run)
+  zeff: 1.0                   # Z_eff used by the Spitzer field
+  neoclassical_factor: 2.0    # factor on the Spitzer resistivity
+  chandrasekhar: false        # Chandrasekhar function on the collisional drag
+  T_floor: 10.0               # floor on the bulk temperature [eV]
+  n_floor: 1.0e15             # floor on the density [m^-3]
+  critical_iterations: 4      # fixed-point iterations on gamma_c
+  rtol: 1.0e-5                # tolerances of the backward momentum integration
+  atol: 1.0e-10
+  gamma_max: 4.0              # Maxwell-Juttner integration range in gamma
+  gamma_points: 200000

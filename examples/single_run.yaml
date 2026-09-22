@@ -1,0 +1,111 @@
+# tqtoy configuration: one simulation, all parameters with their default values.
+# Units: SI, temperatures in eV. Any omitted parameter takes its default value.
+# Run with:   tqtoy run single_run.yaml
+# Plot with:  tqtoy plot results/tqtoy_results.h5
+
+plasma:                       # pre-disruption plasma
+  Te0: 20.0e3                 # initial electron temperature [eV]
+  Ti0: null                   # initial ion temperature [eV] (null: = Te0)
+  ne0: 1.0e20                 # initial electron density [m^-3]
+  ni0: null                   # initial main-ion density [m^-3] (null: = ne0)
+  J: 1.0e6                    # current density [A m^-2]
+  J_final: null               # optional linear current decay: J -> J_final ...
+  J_ramp_time: null           # ... reached at t = J_ramp_time [s]
+  B: 5.3                      # magnetic field [T] (used by the ablation law only)
+  cold_T0: 2.0                # initial temperature of the cold population [eV] (2 populations)
+  cold_n0: 1.0e10             # initial density of the cold population [m^-3] (2 populations)
+
+impurities:                   # one entry per element (CHERAB name or symbol: neon, Ne, argon, ...)
+  neon:
+    injected_atom_density: 5.0e19  # density deposited by the injection [m^-3] (prescribed source)
+    background_density: 0.0   # density already present at t = 0 [m^-3]
+
+injection:
+  source: prescribed          # prescribed: constant deposition rate / ablation: pellet ablation law
+  t_start: 1.0e-7             # start of the injection [s]
+  duration: 1.0e-5            # duration of the injection [s]
+  n_D: 1.0e22                 # deposited deuterium atom density [m^-3] (prescribed source)
+  charge_state: 0             # charge state of injected and background impurities (0: neutral)
+  ablation:                   # used only if source = ablation (single impurity element)
+    D2_fraction: null         # molecular fraction X of D2 (null: from n_D and injected_atom_density)
+    volume: 840.0             # deposition volume [m^3]
+    shard_radius: 2.0e-3      # radius of identical shards [m] (ignored if parks is set)
+    n_shards: 300             # number of shards
+    deuterium_coefficients: false  # D coefficients of the ablation law (false: the H coefficients)
+    parks: null               # Parks size distribution, e.g.
+                              #   {n_atoms: 1.8e24, solid_density: 4.95e28, r_min: 1.0e-4, r_max: 1.0e-2}
+    seed: null                # random seed of the Parks sampling (integer for reproducible runs)
+    switch_on_time: 1.0e-6    # time constant of the tanh switch-on of the ablation [s]
+
+model:
+  populations: 1              # 1: single thermal population / 2: hot and cold populations, which
+                              # exchange energy collisionally and no particles, see
+                              # docs/MODEL_EQUATIONS.pdf
+  block_electron_ion_exchange: false
+  resistivity: spitzer        # spitzer / multi_species (2 populations only, not validated)
+  current_sharing: density_weighted   # 2 populations, spitzer resistivity. density_weighted: the
+                              # conductivity of a population is weighted by its own electron density.
+                              # spitzer: two parallel resistors eta(T_hot) and eta(T_cold)
+                              # (see docs/MODEL_EQUATIONS.pdf)
+  atomic_rate_multiplier: 1.0 # multiplies ionisation and recombination rates (>> 1: coronal limit)
+  linear_loss_coefficient: 0.0     # extra loss P = coef * T [W m^-3 eV^-1], off by default
+  main_ion_mass: 1.0          # main-ion mass in the collision times [proton masses] (1 for D too)
+  stochastic:                 # electron heat loss along stochastic field lines
+    enabled: true
+    deltaB_over_B: 1.0e-2     # relative magnetic perturbation
+    r: 0.6                    # evaluation radius [m] (r/a < 1/sqrt(6))
+    a: 2.0                    # minor radius [m]
+    coulomb_log: 15.0         # Coulomb logarithm of this loss
+  radiation_limit:            # limiter of the radiated power at low temperature
+    enabled: true
+    Te_below: 100.0           # the limiter applies below this temperature [eV]
+    time_scale: 1.0e-6        # P_rad <= 1.5 ne Te e / time_scale [s]
+
+time:
+  t_end: 1.0e-2               # last output time [s]
+  n_output: 500               # number of output times
+  spacing: log                # log or linear
+  t_start: null               # first output time [s] (null: = injection.t_start)
+
+solver:                       # scipy.integrate.solve_ivp options
+  method: Radau
+  rtol: 1.0e-2                # check convergence by reducing rtol
+  atol: 1.0e-10
+  state_variables: temperature   # what the solver integrates for the temperatures. temperature: T,
+                              # whose equation carries a 1/n. energy: the energy densities n T,
+                              # whose equation d(nT)/dt = (2/3e) P carries none. Same equations, one
+                              # multiplied by n, and outputs are temperatures either way. The energy
+                              # form is regular but harder to integrate, and needs atol near 1e-13
+  floor: 0.01                 # floor on T [eV] and n [m^-3]. At the floor, only the part of a
+                              # derivative that would push a quantity further below is removed
+  jacobian: numeric           # numeric (scipy differences) or analytic (the impurity charge-state
+                              # columns differentiated analytically: faster, implicit methods only)
+
+output:
+  file: results/tqtoy_results.h5
+  energy_integrals: true      # accurate energy integrals on the internal solver steps
+  energy_refinement: 8        # sub-intervals per solver step for these integrals
+
+fhte:                         # Fast Hot Tail Estimator (hot-tail runaways), see tqtoy fhte
+  enabled: false              # run it on every point at the end of tqtoy run
+  n_output: 2                 # evaluation times from the first to the last output time
+  output_window: active       # place them where E > E_c (runaway creation), or full: over the whole run
+  output_spacing: linear      # linear or log
+  accumulate: true            # keep the runaways once created (running maximum of the fraction)
+  n_trajectory: 2             # stored points per backward momentum trajectory
+  trajectory_spacing: linear  # linear or log
+  field: spitzer              # spitzer (from J, zeff, neoclassical_factor) or model (TQ model field)
+  zeff: 1.0                   # Z_eff of the Spitzer field of the FHTE
+  neoclassical_factor: 2.0    # factor on the Spitzer resistivity of the FHTE
+  chandrasekhar: false        # Chandrasekhar function on the collisional drag
+  temperature: average        # bulk temperature: average (density weighted), cold or hot
+  bound_electron_weight: 0.0  # weight of bound electrons in the collisional density
+  T_floor: 10.0               # floor on the bulk temperature [eV]
+  n_floor: 1.0e15             # floor on the density [m^-3]
+  critical_iterations: 4      # fixed-point iterations on gamma_c
+  rtol: 1.0e-5                # tolerances of the backward momentum integration
+  atol: 1.0e-10
+  gamma_max: 4.0              # Maxwell-Juttner integration range in gamma
+  gamma_points: 200000
+
+scan: {}                      # no scan: see iter_scan.yaml for an example

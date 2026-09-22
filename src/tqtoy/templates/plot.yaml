@@ -1,0 +1,47 @@
+# Input file of `tqtoy plot`: time traces of one scan point, or a comparison of scan points.
+# Run with:   tqtoy plot plot_input.yaml
+# Entries:    tqtoy tasks plot        Appearance: style_input.yaml, tqtoy style
+# Any entry can be changed on the command line: tqtoy plot plot_input.yaml --set style.cmap=magma
+# Indent with spaces, two per level (tabulations are expanded to spaces).
+
+results: results/tqtoy_results.h5   # results file (.h5) of `tqtoy run`, or a standalone FHTE file
+
+# --- which point of the scan (ignored for a single run, and when `compare` is used)
+at: {}                        # e.g. {n_D: 1.0e22, injected_atom_density: 5.0e19}; the closest point is used
+                              # empty: the first point of the grid
+
+# --- which figures
+figures: [temperatures, densities, charge_states, powers, energy]
+# available: temperatures, densities, charge_states, zeff, powers, energy, currents, efield,
+#            exchange, sources, shards, hot_tail        ([all] draws all of them)
+
+# --- comparison of several points of a scan on one figure (1D scan over one axis)
+# Uncomment this section to draw it instead of the figures above.
+# compare:
+#   variable: Te_avg          # quantity versus time; `tqtoy plot --help-variables` lists them
+#   axis: null                # scan axis to vary (null: the only axis of a 1D scan)
+#   at: {}                    # values of the other axes, e.g. {n_D: 1.0e22}
+#   points: null              # values of the varied axis to draw (null: all of them)
+
+# --- output
+outdir: figures               # directory where the figures are saved, created if missing (null: not saved)
+format: png                   # png, pdf, svg...
+show: true                    # open the figures in a window (false on a machine without display)
+
+# --- appearance (all options: tqtoy style)
+style_file: style_input.yaml  # every appearance option, written by `tqtoy init` and `tqtoy style -o`
+                              # null: the default appearance
+style:                        # entries overriding style_file, for this figure only
+  time_unit: ms               # s, ms or us
+  time_axis: log              # log or linear
+# cmap: jet                   # colormap of the multi-curve figures
+# colors: {hot: tab:red, cold: tab:blue}
+# figsize: [8.0, 5.5]
+# dpi: 150
+# fontsize: 12
+# yscale: log                 # log, linear, symlog (null: per figure)
+# xlim: [0.01, 2.0]           # time limits, in time_unit
+# legend: true
+# grid: true
+# injection_band: true        # grey band over the injection window
+# tq_threshold: 100.0         # temperature defining t_TQ [eV]

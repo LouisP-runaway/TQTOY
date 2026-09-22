@@ -1,5 +1,7 @@
-# TQTOY
-A 0D model of the tokamak thermal quench triggered by a massive material injection, such as a shattered pellet.
+# tqtoy
+
+A 0D model of the tokamak thermal quench triggered by a massive material injection, such as a
+shattered pellet.
 
 The plasma is described by one or two thermal populations, each with electrons and main ions.
 Impurity charge states evolve with non-coronal ADAS rates. Everything is local: densities,

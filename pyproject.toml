@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tqtoy"
+version = "1.0.0"
+description = "0D multi-fluid toy model of the tokamak thermal quench triggered by material injection"
+readme = "README.md"
+requires-python = ">=3.9"
+# license = { text = "TO BE DEFINED" }
+authors = [{ name = "TQ toy model developers" }]
+keywords = ["tokamak", "disruption", "thermal quench", "shattered pellet injection", "plasma physics"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "numpy>=1.22",
+    "scipy>=1.8",
+    "h5py>=3.0",
+    "matplotlib>=3.6",
+    "pyyaml>=5.4",
+    "cherab>=1.4",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7"]
+
+[project.scripts]
+tqtoy = "tqtoy.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"tqtoy.templates" = ["*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["adas: needs the OpenADAS data (tqtoy install-adas)"]

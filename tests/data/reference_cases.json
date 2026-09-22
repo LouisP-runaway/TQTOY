@@ -1,0 +1,109 @@
+{
+ "note": "Pinned reference values of five configurations, used by test_regression.py. rhs_<case>.npz holds 80 states and the right-hand side evaluated on them, which involves no linear algebra and is therefore reproducible to round-off on any machine. reference_<case>.npz holds the trajectories of the same configurations. Regenerate them only on purpose, and say in the changelog what moved.",
+ "common": {
+  "plasma": {
+   "Te0": 20000.0,
+   "ne0": 1e+20,
+   "J": 1000000.0,
+   "B": 5.3,
+   "cold_T0": 2.0,
+   "cold_n0": 10000000000.0
+  },
+  "injection": {
+   "t_start": 1e-07,
+   "duration": 1e-05
+  },
+  "solver": {
+   "method": "Radau",
+   "rtol": 0.01,
+   "atol": 1e-10,
+   "state_variables": "temperature"
+  }
+ },
+ "cases": {
+  "A": {
+   "description": "1 population, prescribed source, neon",
+   "impurities": {
+    "neon": {
+     "injected_atom_density": 5e+19
+    }
+   },
+   "injection": {
+    "n_D": 1e+22
+   },
+   "model": {
+    "populations": 1
+   }
+  },
+  "B": {
+   "description": "2 populations, prescribed source, neon",
+   "impurities": {
+    "neon": {
+     "injected_atom_density": 5e+19
+    }
+   },
+   "injection": {
+    "n_D": 1e+22
+   },
+   "model": {
+    "populations": 2
+   },
+   "solver": {
+    "state_variables": "temperature"
+   }
+  },
+  "C": {
+   "description": "2 populations, ablation source (X=0.9, 300 shards of 2 mm)",
+   "impurities": {
+    "neon": {}
+   },
+   "injection": {
+    "source": "ablation",
+    "ablation": {
+     "D2_fraction": 0.9,
+     "volume": 840.0,
+     "shard_radius": 0.002,
+     "n_shards": 300
+    }
+   },
+   "model": {
+    "populations": 2
+   },
+   "solver": {
+    "state_variables": "temperature"
+   }
+  },
+  "D": {
+   "description": "1 population, prescribed source, argon",
+   "impurities": {
+    "argon": {
+     "injected_atom_density": 2e+19
+    }
+   },
+   "injection": {
+    "n_D": 3e+21
+   },
+   "model": {
+    "populations": 1
+   }
+  },
+  "E": {
+   "description": "2 populations, multi-species resistivity",
+   "impurities": {
+    "neon": {
+     "injected_atom_density": 5e+19
+    }
+   },
+   "injection": {
+    "n_D": 1e+22
+   },
+   "model": {
+    "populations": 2,
+    "resistivity": "multi_species"
+   },
+   "solver": {
+    "state_variables": "temperature"
+   }
+  }
+ }
+}

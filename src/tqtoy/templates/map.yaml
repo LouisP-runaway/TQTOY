@@ -1,0 +1,41 @@
+# Input file of `tqtoy map`: a scalar quantity over a scan.
+# A 1D scan (one axis) gives a line, a 2D scan (two axes) gives a map.
+# Run with:   tqtoy map map_input.yaml
+# Entries:    tqtoy tasks map         Appearance: style_input.yaml, tqtoy style
+# Indent with spaces, two per level (tabulations are expanded to spaces).
+
+results: results/tqtoy_results.h5   # results file (.h5) of `tqtoy run`, with a scan
+
+quantity: t_TQ                # t_TQ                     thermal-quench time [s]
+                              # Te_avg_final             final average electron temperature [eV]
+                              # t_radiative_collapse     time of the radiative collapse [s]
+                              # radiated_fraction        E_rad / (E_rad + E_stoch + E_lin)
+                              # radiated_fraction_net    (E_rad - E_ohm) / (E_rad + E_stoch + E_lin - E_ohm)
+                              # n_RE_hot_tail            final n_RE / n0 (needs `tqtoy fhte` first)
+                              # n_RE_hot_tail_density    final n_RE [m^-3]
+
+# --- output
+outdir: figures               # directory where the figure is saved, created if missing (null: not saved)
+format: png
+show: true
+
+# --- appearance (all options: tqtoy style)
+style_file: style_input.yaml  # every appearance option, written by `tqtoy init` and `tqtoy style -o`
+                              # null: the default appearance
+style:                        # entries overriding style_file, for this figure only
+  cmap: jet                   # viridis, turbo, plasma, RdBu_r...
+  log: true                   # colour scale on log10 of the quantity
+  contours: false             # isocontour lines on top of the map
+  contour_levels: 8           # a number: how many contours; a list: their values
+  contour_color: white
+  contour_labels: true
+# vmin: -25                   # colour-scale limits, in displayed units (log10 if log: true)
+# vmax: 0
+# filled: false               # filled contours with discrete colour levels
+# filled_levels: 16
+# map_xscale: auto            # auto, log or linear
+# map_yscale: auto
+# bad_color: '0.8'            # colour of the points with no value (failed runs)
+# overlay: {quantity: radiated_fraction_net, levels: [0.5], color: lime}   # contours of a second quantity
+# ratio_lines: [0.5, 1.0, 2.0]    # straight lines y = k x over the map
+# title: ''                   # figure title ('' for none)
